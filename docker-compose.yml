@@ -1,0 +1,50 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sales_calc_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-strong_password}
+      POSTGRES_DB: ${POSTGRES_DB:-sales_calc}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sales_calc_user} -d ${POSTGRES_DB:-sales_calc}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_PORT: ${APP_PORT:-8090}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://sales_calc_user:strong_password@postgres:5432/sales_calc}
+      ADMIN_LOGIN: ${ADMIN_LOGIN:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-change_me}
+      JWT_SECRET: ${JWT_SECRET:-change_me_to_a_long_random_string}
+    ports:
+      - "${APP_PORT:-8090}:8090"
+
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:-strong_password}
+      POSTGRES_USER: ${POSTGRES_USER:-sales_calc_user}
+      POSTGRES_DB: ${POSTGRES_DB:-sales_calc}
+      POSTGRES_HOST: postgres
+      BACKUP_RETENTION_DAYS: 14
+    volumes:
+      - ./backups:/backups
+      - ./scripts:/scripts:ro
+    command: ["/bin/sh", "-c", "while true; do /scripts/backup.sh; sleep 86400; done"]
+
+volumes:
+  postgres_data:

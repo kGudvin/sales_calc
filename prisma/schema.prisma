@@ -1,0 +1,207 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum CalculationType {
+  AUCTION
+  COMMERCIAL_OFFER
+  DRAFT
+}
+
+enum CalculationStatus {
+  DRAFT
+  IN_PROGRESS
+  READY
+  OFFER_SENT
+  BID_SUBMITTED
+  AUCTION_FINISHED
+  WON
+  LOST
+  ARCHIVED
+}
+
+enum ComponentInputCurrency {
+  RUB
+  USD
+}
+
+enum ComponentSourceType {
+  manual
+  template
+  price_list
+}
+
+model User {
+  id           String            @id @default(cuid())
+  login        String            @unique
+  passwordHash String
+  role         UserRole          @default(USER)
+  isActive     Boolean           @default(true)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  calculations Calculation[]
+  templates    ProductTemplate[]
+  favorites    FavoriteTemplate[]
+
+  @@index([role])
+  @@index([isActive])
+}
+
+model Calculation {
+  id                       String            @id @default(cuid())
+  ownerId                  String
+  owner                    User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  type                     CalculationType
+  status                   CalculationStatus @default(DRAFT)
+  title                    String?
+  customerName             String?
+  customerInn              String?
+  customerCity             String?
+  purchaseNumber           String?
+  purchaseLink             String?
+  platformName             String?
+  nmckRub                  Decimal?          @db.Decimal(14, 2)
+  applicationDeadline      DateTime?
+  deliveryTerms            String?
+  warrantyTerms            String?
+  currencyRateUsdRub       Decimal           @db.Decimal(12, 4)
+  isManualCurrencyRate     Boolean           @default(false)
+  deliveryCostRub          Decimal           @default(0) @db.Decimal(14, 2)
+  bidSecurityPercent       Decimal           @default(0) @db.Decimal(6, 2)
+  contractSecurityPercent  Decimal           @default(0) @db.Decimal(6, 2)
+  warrantySecurityPercent  Decimal           @default(0) @db.Decimal(6, 2)
+  bankGuaranteePercent     Decimal           @default(5) @db.Decimal(6, 2)
+  customMarginPercent      Decimal?          @db.Decimal(6, 2)
+  customAuctionDiscount    Decimal?          @db.Decimal(6, 2)
+  notes                    String?
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
+  products                 Product[]
+
+  @@index([title])
+  @@index([customerInn])
+  @@index([purchaseNumber])
+  @@index([ownerId])
+  @@index([status])
+  @@index([type])
+  @@index([updatedAt])
+}
+
+model Product {
+  id                     String             @id @default(cuid())
+  calculationId          String
+  calculation            Calculation        @relation(fields: [calculationId], references: [id], onDelete: Cascade)
+  name                   String
+  category               String?
+  quantity               Int                @default(1)
+  registryNumber         String?
+  comment                String?
+  manualPurchasePriceRub Decimal?           @db.Decimal(14, 2)
+  manualPurchasePriceUsd Decimal?           @db.Decimal(14, 2)
+  useManualPurchasePrice Boolean            @default(false)
+  sortOrder              Int                @default(0)
+  components             ProductComponent[]
+
+  @@index([calculationId])
+  @@index([sortOrder])
+}
+
+model ProductComponent {
+  id                 String                 @id @default(cuid())
+  productId          String
+  product            Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name               String
+  characteristics    String?
+  comment            String?
+  quantityPerProduct Decimal                @default(1) @db.Decimal(12, 3)
+  priceRub           Decimal?               @db.Decimal(14, 2)
+  priceUsd           Decimal?               @db.Decimal(14, 2)
+  inputCurrency      ComponentInputCurrency @default(RUB)
+  isIncluded         Boolean                @default(true)
+  sourceType         ComponentSourceType    @default(manual)
+  distributorName    String?
+  sortOrder          Int                    @default(0)
+
+  @@index([productId])
+  @@index([sortOrder])
+}
+
+model ProductCategory {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProductTemplate {
+  id          String                     @id @default(cuid())
+  ownerId     String?
+  owner       User?                      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name        String
+  category    String?
+  isGlobal    Boolean                    @default(false)
+  createdAt   DateTime                   @default(now())
+  updatedAt   DateTime                   @updatedAt
+  components  ProductTemplateComponent[]
+  favorites   FavoriteTemplate[]
+
+  @@index([ownerId])
+  @@index([isGlobal])
+}
+
+model ProductTemplateComponent {
+  id                 String                 @id @default(cuid())
+  templateId         String
+  template           ProductTemplate        @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  name               String
+  characteristics    String?
+  quantityPerProduct Decimal                @default(1) @db.Decimal(12, 3)
+  priceRub           Decimal?               @db.Decimal(14, 2)
+  priceUsd           Decimal?               @db.Decimal(14, 2)
+  inputCurrency      ComponentInputCurrency @default(RUB)
+  sortOrder          Int                    @default(0)
+}
+
+model FavoriteTemplate {
+  id         String          @id @default(cuid())
+  userId     String
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  templateId String
+  template   ProductTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  createdAt  DateTime        @default(now())
+
+  @@unique([userId, templateId])
+}
+
+model PriceListItem {
+  id              String   @id @default(cuid())
+  distributorName String
+  sku             String?
+  name            String
+  characteristics String?
+  priceRub        Decimal? @db.Decimal(14, 2)
+  priceUsd        Decimal? @db.Decimal(14, 2)
+  currency        String?
+  stock           Int?
+  uploadedAt      DateTime @default(now())
+
+  @@index([distributorName])
+  @@index([name])
+  @@index([sku])
+}
+
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

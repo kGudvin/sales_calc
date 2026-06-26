@@ -1,0 +1,10 @@
+node_modules
+.next
+.pnpm-store
+.git
+.agents
+.env
+backups/*.dump
+backups/*.sql
+backups/*.gz
+*.log

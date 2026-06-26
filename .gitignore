@@ -1,0 +1,9 @@
+node_modules
+.next
+.pnpm-store
+.env
+*.log
+tsconfig.tsbuildinfo
+backups/*.dump
+backups/*.sql
+backups/*.gz
