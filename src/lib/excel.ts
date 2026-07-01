@@ -5,6 +5,21 @@ import { calculationStatusLabels, calculationTypeLabels } from "@/lib/format";
 const rubFormat = '#,##0 "₽"';
 const percentFormat = '0.00"%"';
 
+function cellAddress(row: number, col: number) {
+  let column = "";
+  let n = col;
+  while (n > 0) {
+    const r = (n - 1) % 26;
+    column = String.fromCharCode(65 + r) + column;
+    n = Math.floor((n - 1) / 26);
+  }
+  return `${column}${row}`;
+}
+
+function setFormula(cell: ExcelJS.Cell, formula: string, result: number | string) {
+  cell.value = { formula, result };
+}
+
 function styleHeader(row: ExcelJS.Row) {
   row.font = { bold: true, color: { argb: "FFFFFFFF" } };
   row.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF24445C" } };
@@ -26,7 +41,18 @@ export async function buildCalculationWorkbook(calculation: CalculationFull) {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "Sales Calculation Service";
   workbook.created = new Date();
+  workbook.calcProperties.fullCalcOnLoad = true;
   const productBlockRanges: Array<{ start: number; end: number }> = [];
+  const productFormulaRows: Array<{
+    productRow: number;
+    componentStart?: number;
+    componentEnd?: number;
+    manualUnitCostRub: number;
+    unitCostResult: number;
+    totalCostResult: number;
+    inputUnitResult: number;
+    inputTotalResult: number;
+  }> = [];
   const ws = workbook.addWorksheet("Расчёт", {
     views: [{ state: "frozen", ySplit: 1 }]
   });
@@ -51,8 +77,10 @@ export async function buildCalculationWorkbook(calculation: CalculationFull) {
     ["Заказчик", calculation.customerName || "", "ИНН", calculation.customerInn || ""],
     ["Город", calculation.customerCity || "", "", ""]
   ]);
+  const rateCell = cellAddress(4, 2);
   ws.addRow([]);
 
+  let nmckCell = "";
   if (calculation.type === "AUCTION") {
     section(ws, "Тендер");
     ws.addRows([
@@ -61,6 +89,7 @@ export async function buildCalculationWorkbook(calculation: CalculationFull) {
       ["Окончание заявок", calculation.applicationDeadline ? calculation.applicationDeadline.toLocaleDateString("ru-RU") : "", "Поставка", calculation.deliveryTerms || ""],
       ["Гарантия", calculation.warrantyTerms || "", "", ""]
     ]);
+    nmckCell = cellAddress(ws.rowCount - 2, 4);
     ws.addRow([]);
   }
 
@@ -92,11 +121,13 @@ export async function buildCalculationWorkbook(calculation: CalculationFull) {
       row.inputUnitCostRub,
       row.inputTotalCostRub
     ]);
+    const productRow = excelRow.number;
     excelRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF7FBF9" } };
     excelRow.font = { bold: true, color: { argb: "FF172033" } };
     [5, 6, 7, 8].forEach((cell) => (excelRow.getCell(cell).numFmt = rubFormat));
 
     tableHeader(ws, ["Комплектующая", "Характеристики", "Кол-во на 1", "Цена RUB", "Цена USD", "Сумма за 1 изделие", "Учитывать"]);
+    const componentStart = row.product.components.length ? ws.rowCount + 1 : undefined;
     for (const component of row.product.components.sort((a, b) => a.sortOrder - b.sortOrder)) {
       const componentRow = ws.addRow([
         component.name,
@@ -107,28 +138,103 @@ export async function buildCalculationWorkbook(calculation: CalculationFull) {
         Number(component.quantityPerProduct) * Number(component.priceRub || 0),
         component.isIncluded ? "Да" : "Нет"
       ]);
+      const componentRowNumber = componentRow.number;
+      const rubCell = componentRow.getCell(4);
+      const usdCell = componentRow.getCell(5);
+      const componentTotalCell = componentRow.getCell(6);
+
+      if (component.inputCurrency === "USD") {
+        setFormula(rubCell, `ROUND(${cellAddress(componentRowNumber, 5)}*${rateCell},2)`, Number(component.priceRub || 0));
+      } else {
+        setFormula(usdCell, `IF(${rateCell}>0,ROUND(${cellAddress(componentRowNumber, 4)}/${rateCell},2),0)`, Number(component.priceUsd || 0));
+      }
+      setFormula(
+        componentTotalCell,
+        `IF(${cellAddress(componentRowNumber, 7)}="Да",ROUND(${cellAddress(componentRowNumber, 3)}*${cellAddress(componentRowNumber, 4)},2),0)`,
+        component.isIncluded ? Number(component.quantityPerProduct) * Number(component.priceRub || 0) : 0
+      );
       [4, 5, 6].forEach((cell) => (componentRow.getCell(cell).numFmt = rubFormat));
       if (!component.isIncluded) {
         componentRow.font = { color: { argb: "FF64748B" }, italic: true };
       }
     }
+    const componentEnd = row.product.components.length ? ws.rowCount : undefined;
+    const manualUnitCostRub = Number(row.product.manualPurchasePriceRub || 0) || Number(row.product.manualPurchasePriceUsd || 0) * totals.rate;
+    productFormulaRows.push({
+      productRow,
+      componentStart,
+      componentEnd,
+      manualUnitCostRub,
+      unitCostResult: row.productUnitCostRub,
+      totalCostResult: row.productTotalCostRub,
+      inputUnitResult: row.inputUnitCostRub,
+      inputTotalResult: row.inputTotalCostRub
+    });
     productBlockRanges.push({ start: blockStart, end: ws.rowCount });
   }
 
   section(ws, "Расходы и итоги");
-  const summaryRows = [
-    ["Чистая себестоимость товаров", totals.pureProductsCostRub],
-    ["Доставка", totals.deliveryCostRub],
-    ["Обеспечение заявки", totals.bidSecurityAmountRub],
-    ["Обеспечение контракта", totals.contractSecurityAmountRub],
-    ["Обеспечение гарантийных обязательств", totals.warrantySecurityAmountRub],
-    ["Процент БГ", Number(calculation.bankGuaranteePercent)],
-    ["Стоимость БГ", totals.bankGuaranteeCostRub],
-    ["Итоговый вход", totals.inputCostRub]
-  ];
-  for (const values of summaryRows) {
-    const row = ws.addRow(values);
-    row.getCell(2).numFmt = values[0] === "Процент БГ" ? percentFormat : rubFormat;
+  const productTotalRefs = productFormulaRows.map(({ productRow }) => cellAddress(productRow, 6));
+  const productQuantityRefs = productFormulaRows.map(({ productRow }) => cellAddress(productRow, 3));
+  const pureCostRow = ws.addRow(["Чистая себестоимость товаров", totals.pureProductsCostRub]);
+  setFormula(pureCostRow.getCell(2), productTotalRefs.length ? `SUM(${productTotalRefs.join(",")})` : "0", totals.pureProductsCostRub);
+  pureCostRow.getCell(2).numFmt = rubFormat;
+
+  const deliveryRow = ws.addRow(["Доставка", totals.deliveryCostRub]);
+  deliveryRow.getCell(2).numFmt = rubFormat;
+
+  const bidSecurityRow = ws.addRow(["Обеспечение заявки", totals.bidSecurityAmountRub]);
+  setFormula(bidSecurityRow.getCell(2), nmckCell ? `ROUND(${nmckCell}*${Number(calculation.bidSecurityPercent)}/100,2)` : `${totals.bidSecurityAmountRub}`, totals.bidSecurityAmountRub);
+  bidSecurityRow.getCell(2).numFmt = rubFormat;
+
+  const contractSecurityRow = ws.addRow(["Обеспечение контракта", totals.contractSecurityAmountRub]);
+  setFormula(contractSecurityRow.getCell(2), nmckCell ? `ROUND(${nmckCell}*${Number(calculation.contractSecurityPercent)}/100,2)` : `${totals.contractSecurityAmountRub}`, totals.contractSecurityAmountRub);
+  contractSecurityRow.getCell(2).numFmt = rubFormat;
+
+  const warrantySecurityRow = ws.addRow(["Обеспечение гарантийных обязательств", totals.warrantySecurityAmountRub]);
+  setFormula(warrantySecurityRow.getCell(2), nmckCell ? `ROUND(${nmckCell}*${Number(calculation.warrantySecurityPercent)}/100,2)` : `${totals.warrantySecurityAmountRub}`, totals.warrantySecurityAmountRub);
+  warrantySecurityRow.getCell(2).numFmt = rubFormat;
+
+  const bankGuaranteePercentRow = ws.addRow(["Процент БГ", Number(calculation.bankGuaranteePercent)]);
+  bankGuaranteePercentRow.getCell(2).numFmt = percentFormat;
+
+  const bankGuaranteeRow = ws.addRow(["Стоимость БГ", totals.bankGuaranteeCostRub]);
+  setFormula(
+    bankGuaranteeRow.getCell(2),
+    `ROUND(SUM(${cellAddress(bidSecurityRow.number, 2)}:${cellAddress(warrantySecurityRow.number, 2)})*${cellAddress(bankGuaranteePercentRow.number, 2)}/100,2)`,
+    totals.bankGuaranteeCostRub
+  );
+  bankGuaranteeRow.getCell(2).numFmt = rubFormat;
+
+  const inputCostRow = ws.addRow(["Итоговый вход", totals.inputCostRub]);
+  setFormula(inputCostRow.getCell(2), `ROUND(${cellAddress(pureCostRow.number, 2)}+${cellAddress(deliveryRow.number, 2)}+${cellAddress(bankGuaranteeRow.number, 2)},2)`, totals.inputCostRub);
+  inputCostRow.getCell(2).numFmt = rubFormat;
+
+  const sharedExtraCostRow = ws.addRow(["Доп. расходы на 1 шт", totals.sharedExtraCostPerUnit]);
+  setFormula(
+    sharedExtraCostRow.getCell(2),
+    productQuantityRefs.length
+      ? `IF(SUM(${productQuantityRefs.join(",")})>0,ROUND((${cellAddress(deliveryRow.number, 2)}+${cellAddress(bankGuaranteeRow.number, 2)})/SUM(${productQuantityRefs.join(",")}),2),0)`
+      : "0",
+    totals.sharedExtraCostPerUnit
+  );
+  sharedExtraCostRow.getCell(2).numFmt = rubFormat;
+
+  for (const formulaRow of productFormulaRows) {
+    const productRow = ws.getRow(formulaRow.productRow);
+    const quantityCell = cellAddress(formulaRow.productRow, 3);
+    const unitCostCell = cellAddress(formulaRow.productRow, 5);
+    const inputUnitCell = cellAddress(formulaRow.productRow, 7);
+    if (formulaRow.componentStart && formulaRow.componentEnd) {
+      setFormula(
+        productRow.getCell(5),
+        `IF(COUNTIF(${cellAddress(formulaRow.componentStart, 7)}:${cellAddress(formulaRow.componentEnd, 7)},"Да")>0,ROUND(SUM(${cellAddress(formulaRow.componentStart, 6)}:${cellAddress(formulaRow.componentEnd, 6)}),2),${formulaRow.manualUnitCostRub})`,
+        formulaRow.unitCostResult
+      );
+    }
+    setFormula(productRow.getCell(6), `ROUND(${unitCostCell}*${quantityCell},2)`, formulaRow.totalCostResult);
+    setFormula(productRow.getCell(7), `ROUND(${unitCostCell}+${cellAddress(sharedExtraCostRow.number, 2)},2)`, formulaRow.inputUnitResult);
+    setFormula(productRow.getCell(8), `ROUND(${inputUnitCell}*${quantityCell},2)`, formulaRow.inputTotalResult);
   }
   ws.addRow([]);
 
@@ -136,6 +242,10 @@ export async function buildCalculationWorkbook(calculation: CalculationFull) {
   tableHeader(ws, ["Маржа", "Вход", "Цена продажи", "Прибыль", "Фактическая маржа"]);
   for (const scenario of totals.marginScenarios) {
     const row = ws.addRow([scenario.marginPercent, scenario.inputCostRub, scenario.totalSalePriceRub, scenario.profitRub, scenario.actualMarginPercent]);
+    setFormula(row.getCell(2), cellAddress(inputCostRow.number, 2), scenario.inputCostRub);
+    setFormula(row.getCell(3), `ROUND(${cellAddress(row.number, 2)}/(1-${cellAddress(row.number, 1)}/100),2)`, scenario.totalSalePriceRub);
+    setFormula(row.getCell(4), `ROUND(${cellAddress(row.number, 3)}-${cellAddress(row.number, 2)},2)`, scenario.profitRub);
+    setFormula(row.getCell(5), `IF(${cellAddress(row.number, 3)}>0,ROUND(${cellAddress(row.number, 4)}/${cellAddress(row.number, 3)}*100,2),0)`, scenario.actualMarginPercent);
     row.getCell(1).numFmt = percentFormat;
     [2, 3, 4].forEach((cell) => (row.getCell(cell).numFmt = rubFormat));
     row.getCell(5).numFmt = percentFormat;
@@ -155,6 +265,11 @@ export async function buildCalculationWorkbook(calculation: CalculationFull) {
         scenario.auctionMarginPercent,
         scenario.isAboveInput ? "Выше входа" : "Ниже входа"
       ]);
+      setFormula(row.getCell(2), nmckCell ? `ROUND(${nmckCell}*(1-${cellAddress(row.number, 1)}/100),2)` : "0", scenario.auctionPriceRub);
+      setFormula(row.getCell(3), cellAddress(inputCostRow.number, 2), scenario.inputCostRub);
+      setFormula(row.getCell(4), `ROUND(${cellAddress(row.number, 2)}-${cellAddress(row.number, 3)},2)`, scenario.auctionProfitRub);
+      setFormula(row.getCell(5), `IF(${cellAddress(row.number, 2)}>0,ROUND(${cellAddress(row.number, 4)}/${cellAddress(row.number, 2)}*100,2),0)`, scenario.auctionMarginPercent);
+      setFormula(row.getCell(6), `IF(${cellAddress(row.number, 2)}>=${cellAddress(row.number, 3)},"Выше входа","Ниже входа")`, scenario.isAboveInput ? "Выше входа" : "Ниже входа");
       row.getCell(1).numFmt = percentFormat;
       [2, 3, 4].forEach((cell) => (row.getCell(cell).numFmt = rubFormat));
       row.getCell(5).numFmt = percentFormat;

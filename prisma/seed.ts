@@ -37,20 +37,12 @@ async function main() {
     create: { key: "defaultBankGuaranteePercent", value: "5" }
   });
 
-  await template("Компьютер", "Компьютеры", [
-    "Корпус",
-    "Материнская плата",
-    "Процессор",
-    "Оперативная память",
-    "SSD",
-    "Блок питания",
-    "ОС",
-    "Клавиатура",
-    "Мышь"
-  ]);
-  await template("Монитор", "Мониторы", ["Монитор", "Кабель питания", "Кабель HDMI/DP"]);
-  await template("Моноблок", "Моноблоки", ["Моноблок", "ОС", "Клавиатура", "Мышь"]);
-  await template("Ноутбук", "Ноутбуки", ["Ноутбук", "ОС", "Сумка", "Мышь"]);
+  await prisma.productTemplate.deleteMany({
+    where: {
+      isGlobal: true,
+      name: { in: ["Компьютер", "Монитор", "Моноблок", "Ноутбук"] }
+    }
+  });
 }
 
 async function template(name: string, category: string, components: string[]) {
