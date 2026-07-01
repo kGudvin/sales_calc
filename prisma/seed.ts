@@ -3,6 +3,17 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+const baseCategories = [
+  "Компьютеры",
+  "Мониторы",
+  "Моноблоки",
+  "Ноутбуки",
+  "Периферия",
+  "Серверное оборудование"
+];
+
+const legacyGlobalTemplates = ["Компьютер", "Монитор", "Моноблок", "Ноутбук"];
+
 async function main() {
   const adminLogin = process.env.ADMIN_LOGIN || "admin";
   const adminPassword = process.env.ADMIN_PASSWORD || "change_me";
@@ -18,7 +29,7 @@ async function main() {
     }
   });
 
-  for (const name of ["Компьютеры", "Мониторы", "Моноблоки", "Ноутбуки", "Периферия", "Серверное оборудование"]) {
+  for (const name of baseCategories) {
     await prisma.productCategory.upsert({
       where: { name },
       update: {},
@@ -40,27 +51,7 @@ async function main() {
   await prisma.productTemplate.deleteMany({
     where: {
       isGlobal: true,
-      name: { in: ["Компьютер", "Монитор", "Моноблок", "Ноутбук"] }
-    }
-  });
-}
-
-async function template(name: string, category: string, components: string[]) {
-  const existing = await prisma.productTemplate.findFirst({ where: { name, isGlobal: true } });
-  if (existing) return;
-  await prisma.productTemplate.create({
-    data: {
-      name,
-      category,
-      isGlobal: true,
-      components: {
-        create: components.map((componentName, index) => ({
-          name: componentName,
-          quantityPerProduct: 1,
-          inputCurrency: "RUB",
-          sortOrder: index
-        }))
-      }
+      name: { in: legacyGlobalTemplates }
     }
   });
 }
