@@ -3,6 +3,14 @@ import { UserRole } from "@prisma/client";
 import { hashPassword, jsonError, requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
+function isEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function userPayload<T extends { login: string }>(user: T) {
+  return { ...user, email: user.login };
+}
+
 export async function GET(request: NextRequest) {
   try {
     await requireAdmin(request);
@@ -10,7 +18,7 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
       select: { id: true, login: true, role: true, isActive: true, createdAt: true, updatedAt: true }
     });
-    return NextResponse.json({ users });
+    return NextResponse.json({ users: users.map(userPayload) });
   } catch (error) {
     return jsonError(error);
   }
@@ -20,9 +28,11 @@ export async function POST(request: NextRequest) {
   try {
     await requireAdmin(request);
     const body = await request.json();
-    const login = String(body.login || "").trim();
+    const login = String(body.email || body.login || "").trim().toLowerCase();
     const password = String(body.password || "");
-    if (!login || password.length < 6) return NextResponse.json({ error: "Укажите логин и пароль от 6 символов" }, { status: 400 });
+    if (!isEmail(login) || password.length < 8) {
+      return NextResponse.json({ error: "Укажите email и пароль от 8 символов" }, { status: 400 });
+    }
     const user = await prisma.user.create({
       data: {
         login,
@@ -32,7 +42,7 @@ export async function POST(request: NextRequest) {
       },
       select: { id: true, login: true, role: true, isActive: true }
     });
-    return NextResponse.json({ user });
+    return NextResponse.json({ user: userPayload(user) });
   } catch (error) {
     return jsonError(error);
   }
@@ -51,7 +61,7 @@ export async function PUT(request: NextRequest) {
       data,
       select: { id: true, login: true, role: true, isActive: true }
     });
-    return NextResponse.json({ user });
+    return NextResponse.json({ user: userPayload(user) });
   } catch (error) {
     return jsonError(error);
   }

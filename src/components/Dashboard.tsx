@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { calculationStatusLabels, calculationTypeLabels, money } from "@/lib/format";
 
-type User = { id: string; login: string; role: "USER" | "ADMIN" };
+type User = { id: string; login: string; email?: string; role: "USER" | "ADMIN" };
 type CalculationListItem = {
   id: string;
   title: string | null;
@@ -20,8 +20,9 @@ type CalculationListItem = {
 
 export function Dashboard() {
   const [user, setUser] = useState<User | null>(null);
-  const [login, setLogin] = useState("admin");
-  const [password, setPassword] = useState("change_me");
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [items, setItems] = useState<CalculationListItem[]>([]);
   const [q, setQ] = useState("");
@@ -64,7 +65,7 @@ export function Dashboard() {
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ login, password })
+      body: JSON.stringify({ email, password })
     });
     const data = await res.json();
     if (!res.ok) {
@@ -72,6 +73,24 @@ export function Dashboard() {
       return;
     }
     setUser(data.user);
+  }
+
+  async function submitRegister(event: React.FormEvent) {
+    event.preventDefault();
+    setError("");
+    const res = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error || "Не удалось отправить заявку");
+      return;
+    }
+    setAuthMode("login");
+    setPassword("");
+    setError("Заявка создана. Войти можно после одобрения администратором.");
   }
 
   async function logout() {
@@ -119,14 +138,18 @@ export function Dashboard() {
   if (!user) {
     return (
       <main className="flex min-h-screen items-center justify-center p-8">
-        <form onSubmit={submitLogin} className="panel w-full max-w-sm p-6 shadow-sm">
+        <form onSubmit={authMode === "login" ? submitLogin : submitRegister} className="panel w-full max-w-sm p-6 shadow-sm">
           <h1 className="mb-5 text-xl font-semibold">Вход в расчёты</h1>
-          <label className="label">Логин</label>
-          <input className="field mb-3" value={login} onChange={(e) => setLogin(e.target.value)} />
+          <div className="mb-4 grid grid-cols-2 gap-2">
+            <button type="button" className={`btn ${authMode === "login" ? "btn-primary" : ""}`} onClick={() => setAuthMode("login")}>Вход</button>
+            <button type="button" className={`btn ${authMode === "register" ? "btn-primary" : ""}`} onClick={() => setAuthMode("register")}>Регистрация</button>
+          </div>
+          <label className="label">Email</label>
+          <input className="field mb-3" type="text" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           <label className="label">Пароль</label>
-          <input className="field mb-4" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <input className="field mb-4" type="password" minLength={authMode === "register" ? 8 : 1} value={password} onChange={(e) => setPassword(e.target.value)} required />
           {error && <div className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-danger">{error}</div>}
-          <button className="btn btn-primary w-full">Войти</button>
+          <button className="btn btn-primary w-full">{authMode === "login" ? "Войти" : "Отправить заявку"}</button>
         </form>
       </main>
     );
@@ -138,7 +161,7 @@ export function Dashboard() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <div>
             <h1 className="text-xl font-semibold">Расчёты отдела продаж</h1>
-            <p className="text-sm text-muted">{user.login} · {user.role === "ADMIN" ? "Администратор" : "Менеджер"}</p>
+            <p className="text-sm text-muted">{user.email || user.login} · {user.role === "ADMIN" ? "Администратор" : "Менеджер"}</p>
           </div>
           <div className="flex gap-2">
             {user.role === "ADMIN" && <Link className="btn" href="/admin">Админка</Link>}

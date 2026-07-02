@@ -9,7 +9,7 @@ export function AdminPanel() {
   const [prices, setPrices] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
   const [message, setMessage] = useState("");
-  const [userForm, setUserForm] = useState({ login: "", password: "", role: "USER" });
+  const [userForm, setUserForm] = useState({ email: "", password: "", role: "USER" });
   const [categoryName, setCategoryName] = useState("");
   const [templateName, setTemplateName] = useState("");
   const [templateComponents, setTemplateComponents] = useState("Корпус\nПроцессор\nОперативная память");
@@ -49,7 +49,7 @@ export function AdminPanel() {
       body: JSON.stringify(userForm)
     });
     setMessage(res.ok ? "Пользователь создан" : (await res.json()).error);
-    setUserForm({ login: "", password: "", role: "USER" });
+    setUserForm({ email: "", password: "", role: "USER" });
     loadAll();
   }
 
@@ -129,7 +129,7 @@ export function AdminPanel() {
         <div className="panel p-4">
           <h2 className="mb-4 font-semibold">Пользователи</h2>
           <form onSubmit={createUser} className="mb-4 grid grid-cols-[1fr_1fr_140px_auto] gap-2">
-            <input className="field" placeholder="Логин" value={userForm.login} onChange={(e) => setUserForm({ ...userForm, login: e.target.value })} />
+            <input className="field" type="email" placeholder="Email" value={userForm.email} onChange={(e) => setUserForm({ ...userForm, email: e.target.value })} />
             <input className="field" placeholder="Пароль" value={userForm.password} onChange={(e) => setUserForm({ ...userForm, password: e.target.value })} />
             <select className="field" value={userForm.role} onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}>
               <option value="USER">USER</option>
@@ -138,11 +138,11 @@ export function AdminPanel() {
             <button className="btn btn-primary">Создать</button>
           </form>
           <table className="table">
-            <thead><tr><th>Логин</th><th>Роль</th><th>Активен</th><th></th></tr></thead>
+            <thead><tr><th>Email</th><th>Роль</th><th>Доступ</th><th></th></tr></thead>
             <tbody>
               {users.map((user) => (
                 <tr key={user.id}>
-                  <td>{user.login}</td>
+                  <td>{user.email || user.login}</td>
                   <td>
                     <select className="field" value={user.role} onChange={(e) => updateUser(user, { role: e.target.value })}>
                       <option value="USER">USER</option>

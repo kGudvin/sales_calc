@@ -16,6 +16,7 @@ services:
 
   app:
     build: .
+    container_name: sales-calc-app
     restart: unless-stopped
     depends_on:
       postgres:
@@ -28,6 +29,11 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change_me_to_a_long_random_string}
     ports:
       - "${APP_PORT:-8090}:8090"
+    expose:
+      - 8090
+    networks:
+      - default
+      - web
 
   backup:
     image: postgres:16-alpine
@@ -48,3 +54,7 @@ services:
 
 volumes:
   postgres_data:
+
+networks:
+  web:
+    external: true
