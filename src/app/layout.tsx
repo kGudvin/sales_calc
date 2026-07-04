@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "@/app/globals.css";
 
 export const metadata: Metadata = {
-  title: "Расчёты отдела продаж",
+  title: "Калькулятор закупок",
   description: "Сервис расчётов товаров, КП и электронных аукционов",
   icons: {
     icon: "/favicon.svg"

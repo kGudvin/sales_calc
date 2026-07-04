@@ -160,7 +160,7 @@ export function Dashboard() {
       <header className="border-b border-line bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <div>
-            <h1 className="text-xl font-semibold">Расчёты отдела продаж</h1>
+            <h1 className="text-xl font-semibold">Калькулятор закупок</h1>
             <p className="text-sm text-muted">{user.email || user.login} · {user.role === "ADMIN" ? "Администратор" : "Менеджер"}</p>
           </div>
           <div className="flex gap-2">
