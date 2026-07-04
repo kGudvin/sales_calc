@@ -11,6 +11,7 @@ export function AdminPanel() {
   const [message, setMessage] = useState("");
   const [userForm, setUserForm] = useState({ email: "", password: "", role: "USER" });
   const [categoryName, setCategoryName] = useState("");
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
   const [templateName, setTemplateName] = useState("");
   const [templateComponents, setTemplateComponents] = useState("Корпус\nПроцессор\nОперативная память");
   const [priceDistributor, setPriceDistributor] = useState("");
@@ -75,16 +76,38 @@ export function AdminPanel() {
 
   async function createTemplate(event: React.FormEvent) {
     event.preventDefault();
-    await fetch("/api/templates", {
-      method: "POST",
+    const components = templateComponents.split("\n").map((name, index) => ({ name: name.trim(), quantityPerProduct: 1, sortOrder: index })).filter((item) => item.name);
+    const res = await fetch(editingTemplateId ? `/api/templates/${editingTemplateId}` : "/api/templates", {
+      method: editingTemplateId ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: templateName,
         isGlobal: true,
-        components: templateComponents.split("\n").map((name, index) => ({ name: name.trim(), quantityPerProduct: 1, sortOrder: index })).filter((item) => item.name)
+        components
       })
     });
+    setMessage(res.ok ? (editingTemplateId ? "Шаблон обновлён" : "Шаблон создан") : (await res.json()).error);
+    resetTemplateForm();
+    loadAll();
+  }
+
+  function editTemplate(template: any) {
+    setEditingTemplateId(template.id);
+    setTemplateName(template.name || "");
+    setTemplateComponents((template.components || []).map((component: any) => component.name).join("\n"));
+  }
+
+  function resetTemplateForm() {
+    setEditingTemplateId(null);
     setTemplateName("");
+    setTemplateComponents("Корпус\nПроцессор\nОперативная память");
+  }
+
+  async function deleteTemplate(template: any) {
+    if (!confirm(`Удалить шаблон "${template.name}"?`)) return;
+    const res = await fetch(`/api/templates/${template.id}`, { method: "DELETE" });
+    setMessage(res.ok ? "Шаблон удалён" : (await res.json()).error);
+    if (editingTemplateId === template.id) resetTemplateForm();
     loadAll();
   }
 
@@ -173,13 +196,20 @@ export function AdminPanel() {
           <form onSubmit={createTemplate} className="space-y-2">
             <input className="field" placeholder="Название шаблона" value={templateName} onChange={(e) => setTemplateName(e.target.value)} />
             <textarea className="field min-h-28" value={templateComponents} onChange={(e) => setTemplateComponents(e.target.value)} />
-            <button className="btn btn-primary">Создать шаблон</button>
+            <div className="flex flex-wrap gap-2">
+              <button className="btn btn-primary">{editingTemplateId ? "Сохранить шаблон" : "Создать шаблон"}</button>
+              {editingTemplateId && <button type="button" className="btn" onClick={resetTemplateForm}>Отмена</button>}
+            </div>
           </form>
           <div className="mt-4 grid grid-cols-2 gap-2">
             {templates.filter((template) => template.isGlobal).map((template) => (
               <div key={template.id} className="rounded-md border border-line p-2 text-sm">
                 <b>{template.name}</b>
                 <div className="text-muted">{template.components.length} комплектующих</div>
+                <div className="mt-3 flex gap-2">
+                  <button type="button" className="btn" onClick={() => editTemplate(template)}>Изменить</button>
+                  <button type="button" className="btn btn-danger" onClick={() => deleteTemplate(template)}>Удалить</button>
+                </div>
               </div>
             ))}
           </div>
