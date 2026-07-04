@@ -115,7 +115,7 @@ export function Dashboard() {
         contractSecurityPercent: 0,
         warrantySecurityPercent: 0,
         bankGuaranteePercent: 5,
-        products: [{ name: "Новое изделие", category: "", quantity: 1, useManualPurchasePrice: true, manualPurchasePriceRub: 0, components: [] }]
+        products: []
       })
     });
     const data = await res.json();

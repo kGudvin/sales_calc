@@ -12,7 +12,7 @@ const baseCategories = [
   "Серверное оборудование"
 ];
 
-const legacyGlobalTemplates = ["Компьютер", "Монитор", "Моноблок", "Ноутбук"];
+const legacyGlobalTemplates = ["Компьютер", "Монитор", "Моноблок", "Ноутбук", "Системный блок"];
 
 async function main() {
   const adminLogin = process.env.ADMIN_LOGIN || "admin";
