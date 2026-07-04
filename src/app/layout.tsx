@@ -3,7 +3,10 @@ import "@/app/globals.css";
 
 export const metadata: Metadata = {
   title: "Расчёты отдела продаж",
-  description: "Сервис расчётов товаров, КП и электронных аукционов"
+  description: "Сервис расчётов товаров, КП и электронных аукционов",
+  icons: {
+    icon: "/favicon.svg"
+  }
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
