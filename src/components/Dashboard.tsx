@@ -130,6 +130,18 @@ export function Dashboard() {
     else setError(data.error || "Не удалось скопировать");
   }
 
+  async function deleteCalculation(item: CalculationListItem) {
+    if (!confirm(`Удалить расчёт "${item.title || "Без названия"}"?`)) return;
+    const res = await fetch(`/api/calculations/${item.id}`, { method: "DELETE" });
+    if (res.ok) {
+      setItems((current) => current.filter((calculation) => calculation.id !== item.id));
+      setError("");
+      return;
+    }
+    const data = await res.json();
+    setError(data.error || "Не удалось удалить расчёт");
+  }
+
   const typeOptions = useMemo(() => Object.entries(calculationTypeLabels), []);
   const statusOptions = useMemo(() => Object.entries(calculationStatusLabels), []);
 
@@ -217,8 +229,13 @@ export function Dashboard() {
                   <td>{item.customerName || "—"}<div className="text-xs text-muted">{item.customerInn || ""}</div></td>
                   <td>{item.owner?.login || "—"}</td>
                   <td>{new Date(item.updatedAt).toLocaleString("ru-RU")}</td>
-                  <td className="text-right">
-                    <button className="btn" onClick={() => copyCalculation(item.id)}>Копировать</button>
+                  <td>
+                    <div className="flex justify-end gap-2">
+                      <button className="btn" onClick={() => copyCalculation(item.id)}>Копировать</button>
+                      {item.owner?.login === user.login && (
+                        <button className="btn btn-danger" onClick={() => deleteCalculation(item)}>Удалить</button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
