@@ -94,6 +94,43 @@ textarea {
   border-color: rgba(176, 191, 215, .12);
 }
 
+.component-table {
+  table-layout: fixed;
+}
+
+.component-include-col {
+  width: 11%;
+}
+
+.component-name-col {
+  width: 26%;
+}
+
+.component-characteristics-col {
+  width: 30%;
+}
+
+.component-quantity-col {
+  width: 72px;
+}
+
+.component-price-col {
+  width: 13%;
+}
+
+.component-delete-col {
+  width: 64px;
+}
+
+.component-textarea {
+  min-height: 42px;
+  resize: none;
+  overflow: hidden;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 header.bg-white,
 .bg-white {
   background: rgba(13, 20, 36, .92) !important;

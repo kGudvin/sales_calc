@@ -214,12 +214,12 @@ export function CalculationEditor({ id }: { id: string }) {
                 </select>
               </Field>
               <Field label="Курс USD/RUB">
-                <input disabled={readOnly} className="field" type="number" step="0.0001" value={calc.currencyRateUsdRub || ""} onChange={(e) => { update("currencyRateUsdRub", Number(e.target.value)); update("isManualCurrencyRate", true); }} />
+                <NumericField disabled={readOnly} value={calc.currencyRateUsdRub || ""} onValueChange={(value) => { update("currencyRateUsdRub", value); update("isManualCurrencyRate", true); }} />
               </Field>
               <Field label="Заказчик"><input disabled={readOnly} className="field" value={calc.customerName || ""} onChange={(e) => update("customerName", e.target.value)} /></Field>
               <Field label="ИНН"><input disabled={readOnly} className="field" value={calc.customerInn || ""} onChange={(e) => update("customerInn", e.target.value)} /></Field>
               <Field label="Город"><input disabled={readOnly} className="field" value={calc.customerCity || ""} onChange={(e) => update("customerCity", e.target.value)} /></Field>
-              <Field label="Доставка, ₽"><input disabled={readOnly} className="field" type="number" value={calc.deliveryCostRub || 0} onChange={(e) => update("deliveryCostRub", Number(e.target.value))} /></Field>
+              <Field label="Доставка, ₽"><NumericField disabled={readOnly} value={calc.deliveryCostRub || 0} onValueChange={(value) => update("deliveryCostRub", value)} /></Field>
             </div>
           </div>
 
@@ -230,11 +230,11 @@ export function CalculationEditor({ id }: { id: string }) {
                 <Field label="Номер закупки"><input disabled={readOnly} className="field" value={calc.purchaseNumber || ""} onChange={(e) => update("purchaseNumber", e.target.value)} /></Field>
                 <Field label="Ссылка"><input disabled={readOnly} className="field" value={calc.purchaseLink || ""} onChange={(e) => update("purchaseLink", e.target.value)} /></Field>
                 <Field label="Площадка"><input disabled={readOnly} className="field" value={calc.platformName || ""} onChange={(e) => update("platformName", e.target.value)} /></Field>
-                <Field label="НМЦК, ₽"><input disabled={readOnly} className="field" type="number" value={calc.nmckRub || 0} onChange={(e) => update("nmckRub", Number(e.target.value))} /></Field>
+                <Field label="НМЦК, ₽"><NumericField disabled={readOnly} value={calc.nmckRub || 0} onValueChange={(value) => update("nmckRub", value)} /></Field>
                 <Field label="Заявки до"><input disabled={readOnly} className="field" type="date" value={calc.applicationDeadline ? String(calc.applicationDeadline).slice(0, 10) : ""} onChange={(e) => update("applicationDeadline", e.target.value)} /></Field>
                 <Field label="Поставка"><input disabled={readOnly} className="field" value={calc.deliveryTerms || ""} onChange={(e) => update("deliveryTerms", e.target.value)} /></Field>
                 <Field label="Гарантия"><input disabled={readOnly} className="field" value={calc.warrantyTerms || ""} onChange={(e) => update("warrantyTerms", e.target.value)} /></Field>
-                <Field label="Своя ставка, %"><input disabled={readOnly} className="field" type="number" value={calc.customAuctionDiscount || ""} onChange={(e) => update("customAuctionDiscount", e.target.value ? Number(e.target.value) : null)} /></Field>
+                <Field label="Своя ставка, %"><NumericField disabled={readOnly} value={calc.customAuctionDiscount ?? ""} nullable onValueChange={(value) => update("customAuctionDiscount", value)} /></Field>
               </div>
             </div>
           )}
@@ -267,17 +267,25 @@ export function CalculationEditor({ id }: { id: string }) {
                 const productTotal = totals.productRows[productIndex];
                 return (
                   <div key={product.id || productIndex} className="rounded-md border border-line p-3">
-                    <div className="grid grid-cols-[1.2fr_1fr_100px_1.2fr_auto] gap-2">
+                    <div className="grid grid-cols-[minmax(220px,1fr)_80px_minmax(220px,1fr)_auto] gap-2">
                       <input disabled={readOnly} className="field" value={product.name || ""} onChange={(e) => updateProduct(productIndex, "name", e.target.value)} />
-                      <input disabled={readOnly} className="field" placeholder="Категория" value={product.category || ""} onChange={(e) => updateProduct(productIndex, "category", e.target.value)} />
-                      <input disabled={readOnly} className="field" type="number" min="0" value={product.quantity || 0} onChange={(e) => updateProduct(productIndex, "quantity", Number(e.target.value))} />
+                      <NumericField disabled={readOnly} className="field text-center" value={product.quantity || 0} onValueChange={(value) => updateProduct(productIndex, "quantity", value)} />
                       <input disabled={readOnly} className="field" placeholder="Реестровый номер" value={product.registryNumber || ""} onChange={(e) => updateProduct(productIndex, "registryNumber", e.target.value)} />
                       {!readOnly && <button className="btn btn-danger" onClick={() => removeProduct(productIndex)}>Удалить</button>}
                     </div>
                     <div className="mt-2 text-sm text-muted">
                       Закупка 1 шт: <b>{money(productTotal?.productUnitCostRub || 0)}</b> · вход 1 шт: <b>{money(productTotal?.inputUnitCostRub || 0)}</b> · всего вход: <b>{money(productTotal?.inputTotalCostRub || 0)}</b>
                     </div>
-                    <table className="table mt-3">
+                    <table className="table component-table mt-3">
+                      <colgroup>
+                        <col className="component-include-col" />
+                        <col className="component-name-col" />
+                        <col className="component-characteristics-col" />
+                        <col className="component-quantity-col" />
+                        <col className="component-price-col" />
+                        <col className="component-price-col" />
+                        <col className="component-delete-col" />
+                      </colgroup>
                       <thead>
                         <tr>
                           <th>Учитывать</th>
@@ -293,11 +301,11 @@ export function CalculationEditor({ id }: { id: string }) {
                         {product.components.map((component: any, componentIndex: number) => (
                           <tr key={component.id || componentIndex}>
                             <td><input disabled={readOnly} type="checkbox" checked={component.isIncluded} onChange={(e) => updateComponent(productIndex, componentIndex, "isIncluded", e.target.checked)} /></td>
-                            <td><input disabled={readOnly} className="field" value={component.name || ""} onChange={(e) => updateComponent(productIndex, componentIndex, "name", e.target.value)} /></td>
-                            <td><input disabled={readOnly} className="field" value={component.characteristics || ""} onChange={(e) => updateComponent(productIndex, componentIndex, "characteristics", e.target.value)} /></td>
-                            <td><input disabled={readOnly} className="field" type="number" value={component.quantityPerProduct || 0} onChange={(e) => updateComponent(productIndex, componentIndex, "quantityPerProduct", Number(e.target.value))} /></td>
-                            <td><input disabled={readOnly} className="field" type="number" value={component.priceRub || 0} onChange={(e) => updateComponent(productIndex, componentIndex, "priceRub", Number(e.target.value))} /></td>
-                            <td><input disabled={readOnly} className="field" type="number" value={component.priceUsd || 0} onChange={(e) => updateComponent(productIndex, componentIndex, "priceUsd", Number(e.target.value))} /></td>
+                            <td><AutoTextarea disabled={readOnly} value={component.name || ""} onChange={(value) => updateComponent(productIndex, componentIndex, "name", value)} /></td>
+                            <td><AutoTextarea disabled={readOnly} value={component.characteristics || ""} onChange={(value) => updateComponent(productIndex, componentIndex, "characteristics", value)} /></td>
+                            <td><NumericField disabled={readOnly} className="field text-center" value={component.quantityPerProduct || 0} onValueChange={(value) => updateComponent(productIndex, componentIndex, "quantityPerProduct", value)} /></td>
+                            <td><NumericField disabled={readOnly} value={component.priceRub || 0} onValueChange={(value) => updateComponent(productIndex, componentIndex, "priceRub", value)} /></td>
+                            <td><NumericField disabled={readOnly} value={component.priceUsd || 0} onValueChange={(value) => updateComponent(productIndex, componentIndex, "priceUsd", value)} /></td>
                             <td>{!readOnly && <button className="btn btn-danger" onClick={() => removeComponent(productIndex, componentIndex)}>×</button>}</td>
                           </tr>
                         ))}
@@ -314,10 +322,10 @@ export function CalculationEditor({ id }: { id: string }) {
         <aside className="space-y-5">
           <div className="panel p-4">
             <h2 className="mb-3 font-semibold">Обеспечения</h2>
-            <Field label="Заявка, %"><input disabled={readOnly} className="field" type="number" value={calc.bidSecurityPercent || 0} onChange={(e) => update("bidSecurityPercent", Number(e.target.value))} /></Field>
-            <Field label="Контракт, %"><input disabled={readOnly} className="field" type="number" value={calc.contractSecurityPercent || 0} onChange={(e) => update("contractSecurityPercent", Number(e.target.value))} /></Field>
-            <Field label="Гарантия, %"><input disabled={readOnly} className="field" type="number" value={calc.warrantySecurityPercent || 0} onChange={(e) => update("warrantySecurityPercent", Number(e.target.value))} /></Field>
-            <Field label="БГ, %"><input disabled={readOnly} className="field" type="number" value={calc.bankGuaranteePercent || 0} onChange={(e) => update("bankGuaranteePercent", Number(e.target.value))} /></Field>
+            <Field label="Заявка, %"><NumericField disabled={readOnly} value={calc.bidSecurityPercent || 0} onValueChange={(value) => update("bidSecurityPercent", value)} /></Field>
+            <Field label="Контракт, %"><NumericField disabled={readOnly} value={calc.contractSecurityPercent || 0} onValueChange={(value) => update("contractSecurityPercent", value)} /></Field>
+            <Field label="Гарантия, %"><NumericField disabled={readOnly} value={calc.warrantySecurityPercent || 0} onValueChange={(value) => update("warrantySecurityPercent", value)} /></Field>
+            <Field label="БГ, %"><NumericField disabled={readOnly} value={calc.bankGuaranteePercent || 0} onValueChange={(value) => update("bankGuaranteePercent", value)} /></Field>
           </div>
 
           <div className="panel p-4">
@@ -331,7 +339,7 @@ export function CalculationEditor({ id }: { id: string }) {
           <div className="panel p-4">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="font-semibold">Маржа</h2>
-              <input disabled={readOnly} className="field w-24" type="number" placeholder="Своя" value={calc.customMarginPercent || ""} onChange={(e) => update("customMarginPercent", e.target.value ? Number(e.target.value) : null)} />
+              <NumericField disabled={readOnly} className="field w-24" placeholder="Своя" value={calc.customMarginPercent ?? ""} nullable onValueChange={(value) => update("customMarginPercent", value)} />
             </div>
             {totals.marginScenarios.map((scenario) => (
               <div key={scenario.marginPercent} className="mb-2 rounded-md border border-line p-2 text-sm">
@@ -360,6 +368,69 @@ export function CalculationEditor({ id }: { id: string }) {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return <label className="block"><span className="label">{label}</span>{children}</label>;
+}
+
+function NumericField({
+  value,
+  onValueChange,
+  nullable = false,
+  className = "field",
+  ...props
+}: Omit<React.InputHTMLAttributes<HTMLInputElement>, "type" | "value" | "onChange"> & {
+  value: number | string | null | undefined;
+  onValueChange: (value: number | null) => void;
+  nullable?: boolean;
+}) {
+  return (
+    <input
+      {...props}
+      className={className}
+      inputMode="decimal"
+      value={value ?? ""}
+      onChange={(event) => {
+        const normalized = normalizeNumberInput(event.target.value);
+        onValueChange(normalized === "" && nullable ? null : Number(normalized || 0));
+      }}
+    />
+  );
+}
+
+function AutoTextarea({
+  value,
+  onChange,
+  className = "field component-textarea",
+  ...props
+}: Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, "value" | "onChange"> & {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <textarea
+      {...props}
+      rows={1}
+      className={className}
+      value={value}
+      ref={resizeTextarea}
+      onChange={(event) => {
+        onChange(event.target.value);
+        resizeTextarea(event.currentTarget);
+      }}
+    />
+  );
+}
+
+function normalizeNumberInput(value: string) {
+  const cleaned = value.replace(",", ".").replace(/[^\d.]/g, "");
+  const [integerPart, ...decimalParts] = cleaned.split(".");
+  const integer = integerPart.replace(/^0+(?=\d)/, "");
+  if (decimalParts.length) return `${integer || "0"}.${decimalParts.join("")}`;
+  return integer;
+}
+
+function resizeTextarea(element: HTMLTextAreaElement | null) {
+  if (!element) return;
+  element.style.height = "auto";
+  element.style.height = `${element.scrollHeight}px`;
 }
 
 function Metric({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
