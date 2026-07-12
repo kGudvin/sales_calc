@@ -267,8 +267,9 @@ export function CalculationEditor({ id }: { id: string }) {
                 const productTotal = totals.productRows[productIndex];
                 return (
                   <div key={product.id || productIndex} className="rounded-md border border-line p-3">
-                    <div className="grid grid-cols-[minmax(220px,1fr)_80px_minmax(220px,1fr)_auto] gap-2">
+                    <div className="grid grid-cols-[minmax(220px,1fr)_minmax(180px,0.7fr)_80px_minmax(220px,1fr)_auto] gap-2">
                       <input disabled={readOnly} className="field" value={product.name || ""} onChange={(e) => updateProduct(productIndex, "name", e.target.value)} />
+                      <input disabled={readOnly} className="field" placeholder="Категория" value={product.category || ""} onChange={(e) => updateProduct(productIndex, "category", e.target.value)} />
                       <NumericField disabled={readOnly} className="field text-center" value={product.quantity || 0} onValueChange={(value) => updateProduct(productIndex, "quantity", value)} />
                       <input disabled={readOnly} className="field" placeholder="Реестровый номер" value={product.registryNumber || ""} onChange={(e) => updateProduct(productIndex, "registryNumber", e.target.value)} />
                       {!readOnly && <button className="btn btn-danger" onClick={() => removeProduct(productIndex)}>Удалить</button>}
