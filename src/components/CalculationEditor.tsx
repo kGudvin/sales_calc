@@ -292,8 +292,8 @@ export function CalculationEditor({ id }: { id: string }) {
                           <th>Комплектующая</th>
                           <th>Характеристики</th>
                           <th>Кол-во</th>
-                          <th>RUB</th>
                           <th>USD</th>
+                          <th>RUB</th>
                           <th></th>
                         </tr>
                       </thead>
@@ -304,8 +304,8 @@ export function CalculationEditor({ id }: { id: string }) {
                             <td><AutoTextarea disabled={readOnly} value={component.name || ""} onChange={(value) => updateComponent(productIndex, componentIndex, "name", value)} /></td>
                             <td><AutoTextarea disabled={readOnly} value={component.characteristics || ""} onChange={(value) => updateComponent(productIndex, componentIndex, "characteristics", value)} /></td>
                             <td><NumericField disabled={readOnly} className="field text-center" value={component.quantityPerProduct || 0} onValueChange={(value) => updateComponent(productIndex, componentIndex, "quantityPerProduct", value)} /></td>
-                            <td><NumericField disabled={readOnly} value={component.priceRub || 0} onValueChange={(value) => updateComponent(productIndex, componentIndex, "priceRub", value)} /></td>
                             <td><NumericField disabled={readOnly} value={component.priceUsd || 0} onValueChange={(value) => updateComponent(productIndex, componentIndex, "priceUsd", value)} /></td>
+                            <td><NumericField disabled={readOnly} value={component.priceRub || 0} onValueChange={(value) => updateComponent(productIndex, componentIndex, "priceRub", value)} /></td>
                             <td>{!readOnly && <button className="btn btn-danger" onClick={() => removeComponent(productIndex, componentIndex)}>×</button>}</td>
                           </tr>
                         ))}

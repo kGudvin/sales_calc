@@ -3,6 +3,7 @@ import { CalculationFull, calculate } from "@/lib/calculations";
 import { calculationStatusLabels, calculationTypeLabels } from "@/lib/format";
 
 const rubFormat = '#,##0 "₽"';
+const usdFormat = '#,##0.00 "$"';
 const percentFormat = '0.00"%"';
 
 function cellAddress(row: number, col: number) {
@@ -126,34 +127,35 @@ export async function buildCalculationWorkbook(calculation: CalculationFull) {
     excelRow.font = { bold: true, color: { argb: "FF172033" } };
     [5, 6, 7, 8].forEach((cell) => (excelRow.getCell(cell).numFmt = rubFormat));
 
-    tableHeader(ws, ["Комплектующая", "Характеристики", "Кол-во на 1", "Цена RUB", "Цена USD", "Сумма за 1 изделие", "Учитывать"]);
+    tableHeader(ws, ["Комплектующая", "Характеристики", "Кол-во на 1", "Цена USD", "Цена RUB", "Сумма за 1 изделие", "Учитывать"]);
     const componentStart = row.product.components.length ? ws.rowCount + 1 : undefined;
     for (const component of row.product.components.sort((a, b) => a.sortOrder - b.sortOrder)) {
       const componentRow = ws.addRow([
         component.name,
         component.characteristics || "",
         Number(component.quantityPerProduct),
-        Number(component.priceRub || 0),
         Number(component.priceUsd || 0),
+        Number(component.priceRub || 0),
         Number(component.quantityPerProduct) * Number(component.priceRub || 0),
         component.isIncluded ? "Да" : "Нет"
       ]);
       const componentRowNumber = componentRow.number;
-      const rubCell = componentRow.getCell(4);
-      const usdCell = componentRow.getCell(5);
+      const usdCell = componentRow.getCell(4);
+      const rubCell = componentRow.getCell(5);
       const componentTotalCell = componentRow.getCell(6);
 
       if (component.inputCurrency === "USD") {
-        setFormula(rubCell, `ROUND(${cellAddress(componentRowNumber, 5)}*${rateCell},2)`, Number(component.priceRub || 0));
+        setFormula(rubCell, `ROUND(${cellAddress(componentRowNumber, 4)}*${rateCell},2)`, Number(component.priceRub || 0));
       } else {
-        setFormula(usdCell, `IF(${rateCell}>0,ROUND(${cellAddress(componentRowNumber, 4)}/${rateCell},2),0)`, Number(component.priceUsd || 0));
+        setFormula(usdCell, `IF(${rateCell}>0,ROUND(${cellAddress(componentRowNumber, 5)}/${rateCell},2),0)`, Number(component.priceUsd || 0));
       }
       setFormula(
         componentTotalCell,
-        `IF(${cellAddress(componentRowNumber, 7)}="Да",ROUND(${cellAddress(componentRowNumber, 3)}*${cellAddress(componentRowNumber, 4)},2),0)`,
+        `IF(${cellAddress(componentRowNumber, 7)}="Да",ROUND(${cellAddress(componentRowNumber, 3)}*${cellAddress(componentRowNumber, 5)},2),0)`,
         component.isIncluded ? Number(component.quantityPerProduct) * Number(component.priceRub || 0) : 0
       );
-      [4, 5, 6].forEach((cell) => (componentRow.getCell(cell).numFmt = rubFormat));
+      componentRow.getCell(4).numFmt = usdFormat;
+      [5, 6].forEach((cell) => (componentRow.getCell(cell).numFmt = rubFormat));
       if (!component.isIncluded) {
         componentRow.font = { color: { argb: "FF64748B" }, italic: true };
       }
