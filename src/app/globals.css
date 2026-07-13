@@ -6,8 +6,15 @@
   color-scheme: dark;
 }
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
+  min-width: 320px;
   background:
     linear-gradient(135deg, rgba(54, 194, 166, .10), transparent 34%),
     linear-gradient(225deg, rgba(106, 168, 255, .09), transparent 32%),
@@ -96,6 +103,37 @@ textarea {
 
 .component-table {
   table-layout: fixed;
+  min-width: 780px;
+}
+
+.component-table-wrap {
+  overflow-x: auto;
+  border: 1px solid rgba(176, 191, 215, .12);
+  border-radius: .5rem;
+  scrollbar-color: rgba(105, 230, 199, .35) transparent;
+}
+
+.component-table-wrap .table th:first-child,
+.component-table-wrap .table td:first-child {
+  padding-left: .75rem;
+}
+
+.summary-panel {
+  border-color: rgba(176, 191, 215, .10);
+  background: rgba(11, 17, 30, .62);
+  box-shadow: none;
+}
+
+.summary-panel h2 {
+  color: #c3ccda;
+}
+
+.summary-panel .field {
+  background: rgba(13, 20, 36, .72);
+}
+
+.product-add-bar {
+  background: linear-gradient(180deg, transparent, rgba(54, 194, 166, .035));
 }
 
 .component-include-col {
@@ -174,4 +212,16 @@ input[type="checkbox"] {
 select option {
   background: #0d1424;
   color: #f7f9ff;
+}
+
+@media (max-width: 639px) {
+  .panel {
+    border-radius: .625rem;
+  }
+
+  .table th,
+  .table td {
+    padding-left: .625rem;
+    padding-right: .625rem;
+  }
 }

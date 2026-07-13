@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { calculate } from "@/lib/calculations";
-import { calculationStatusLabels, calculationTypeLabels, money, percent, usd } from "@/lib/format";
+import { calculationTypeLabels, money, percent } from "@/lib/format";
 
 type AnyCalculation = Record<string, any>;
 
@@ -40,8 +40,6 @@ export function CalculationEditor({ id }: { id: string }) {
   const [templates, setTemplates] = useState<any[]>([]);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [priceQuery, setPriceQuery] = useState("");
-  const [priceItems, setPriceItems] = useState<any[]>([]);
 
   useEffect(() => {
     load();
@@ -167,23 +165,18 @@ export function CalculationEditor({ id }: { id: string }) {
     else setError("Не удалось удалить расчёт");
   }
 
-  async function searchPrices() {
-    const res = await fetch(`/api/prices/search?q=${encodeURIComponent(priceQuery)}`);
-    if (res.ok) setPriceItems((await res.json()).items);
-  }
-
   if (!calc || !totals) return <main className="p-8">Загрузка...</main>;
 
   return (
     <main className="min-h-screen">
       <header className="border-b border-line bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+        <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
           <div>
             <Link href="/" className="text-sm text-accent">← к списку</Link>
             <h1 className="mt-1 text-xl font-semibold">{calc.title || "Расчёт"}</h1>
             <p className="text-sm text-muted">{calc.owner?.login || user?.login} · {readOnly ? "только просмотр" : "редактирование"}</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <a className="btn" href={`/api/calculations/${id}/export`}>Excel</a>
             {!readOnly && <button className="btn btn-primary" onClick={save}>Сохранить</button>}
             {!readOnly && <button className="btn btn-danger" onClick={remove}>Удалить</button>}
@@ -191,7 +184,7 @@ export function CalculationEditor({ id }: { id: string }) {
         </div>
       </header>
 
-      <section className="mx-auto grid max-w-7xl grid-cols-[1fr_340px] gap-5 px-6 py-6">
+      <section className="mx-auto grid max-w-[1600px] grid-cols-1 gap-4 px-4 py-4 sm:px-6 sm:py-6 xl:grid-cols-[minmax(0,1fr)_280px]">
         <div className="space-y-5">
           {(message || error || calc.isManualCurrencyRate) && (
             <div className={`rounded-md px-3 py-2 text-sm ${error || calc.isManualCurrencyRate ? "bg-amber-50 text-warning" : "bg-emerald-50 text-accent"}`}>
@@ -201,16 +194,11 @@ export function CalculationEditor({ id }: { id: string }) {
 
           <div className="panel p-4">
             <h2 className="mb-4 font-semibold">Карточка</h2>
-            <div className="grid grid-cols-4 gap-3">
-              <Field label="Название"><input disabled={readOnly} className="field" value={calc.title || ""} onChange={(e) => update("title", e.target.value)} /></Field>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <Field label="Название (необязательно)"><input disabled={readOnly} className="field" placeholder="Сформируется автоматически" value={calc.title || ""} onChange={(e) => update("title", e.target.value)} /></Field>
               <Field label="Тип">
                 <select disabled={readOnly} className="field" value={calc.type} onChange={(e) => update("type", e.target.value)}>
                   {Object.entries(calculationTypeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                </select>
-              </Field>
-              <Field label="Статус">
-                <select disabled={readOnly} className="field" value={calc.status} onChange={(e) => update("status", e.target.value)}>
-                  {Object.entries(calculationStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                 </select>
               </Field>
               <Field label="Курс USD/RUB">
@@ -226,7 +214,7 @@ export function CalculationEditor({ id }: { id: string }) {
           {calc.type === "AUCTION" && (
             <div className="panel p-4">
               <h2 className="mb-4 font-semibold">Аукцион</h2>
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <Field label="Номер закупки"><input disabled={readOnly} className="field" value={calc.purchaseNumber || ""} onChange={(e) => update("purchaseNumber", e.target.value)} /></Field>
                 <Field label="Ссылка"><input disabled={readOnly} className="field" value={calc.purchaseLink || ""} onChange={(e) => update("purchaseLink", e.target.value)} /></Field>
                 <Field label="Площадка"><input disabled={readOnly} className="field" value={calc.platformName || ""} onChange={(e) => update("platformName", e.target.value)} /></Field>
@@ -242,42 +230,24 @@ export function CalculationEditor({ id }: { id: string }) {
           <div className="panel p-4">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="font-semibold">Изделия и комплектация</h2>
-              {!readOnly && <button className="btn" onClick={addProduct}>+ Изделие</button>}
             </div>
-            <div className="mb-4 flex gap-2">
-              <select disabled={readOnly} className="field max-w-sm" onChange={(e) => { applyTemplate(e.target.value); e.currentTarget.value = ""; }}>
-                <option value="">Добавить из шаблона</option>
-                {templates.map((template) => <option key={template.id} value={template.id}>{template.name}{template.isGlobal ? " · общий" : ""}</option>)}
-              </select>
-              <input className="field max-w-sm" placeholder="Поиск по прайсам" value={priceQuery} onChange={(e) => setPriceQuery(e.target.value)} />
-              <button className="btn" onClick={searchPrices}>Найти</button>
-            </div>
-            {priceItems.length > 0 && (
-              <div className="mb-4 rounded-md border border-line bg-panel p-3 text-sm">
-                {priceItems.slice(0, 5).map((item) => (
-                  <div key={item.id} className="flex justify-between border-b border-line py-1 last:border-0">
-                    <span>{item.name} · {item.distributorName}</span>
-                    <span>{item.priceRub ? money(Number(item.priceRub)) : usd(Number(item.priceUsd || 0))}</span>
-                  </div>
-                ))}
-              </div>
-            )}
             <div className="space-y-4">
               {calc.products.map((product: any, productIndex: number) => {
                 const productTotal = totals.productRows[productIndex];
                 return (
                   <div key={product.id || productIndex} className="rounded-md border border-line p-3">
-                    <div className="grid grid-cols-[minmax(220px,1fr)_minmax(180px,0.7fr)_80px_minmax(220px,1fr)_auto] gap-2">
-                      <input disabled={readOnly} className="field" value={product.name || ""} onChange={(e) => updateProduct(productIndex, "name", e.target.value)} />
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(220px,1fr)_minmax(160px,0.7fr)_90px_minmax(180px,0.8fr)_auto]">
+                      <input disabled={readOnly} className="field" placeholder="Наименование изделия" value={product.name || ""} onChange={(e) => updateProduct(productIndex, "name", e.target.value)} />
                       <input disabled={readOnly} className="field" placeholder="Категория" value={product.category || ""} onChange={(e) => updateProduct(productIndex, "category", e.target.value)} />
-                      <NumericField disabled={readOnly} className="field text-center" value={product.quantity || 0} onValueChange={(value) => updateProduct(productIndex, "quantity", value)} />
+                      <NumericField disabled={readOnly} className="field text-center" aria-label="Количество" placeholder="Кол-во" value={product.quantity || 0} onValueChange={(value) => updateProduct(productIndex, "quantity", value)} />
                       <input disabled={readOnly} className="field" placeholder="Реестровый номер" value={product.registryNumber || ""} onChange={(e) => updateProduct(productIndex, "registryNumber", e.target.value)} />
-                      {!readOnly && <button className="btn btn-danger" onClick={() => removeProduct(productIndex)}>Удалить</button>}
+                      {!readOnly && <button className="btn btn-danger sm:justify-self-start xl:justify-self-auto" onClick={() => removeProduct(productIndex)}>Удалить</button>}
                     </div>
                     <div className="mt-2 text-sm text-muted">
                       Закупка 1 шт: <b>{money(productTotal?.productUnitCostRub || 0)}</b> · вход 1 шт: <b>{money(productTotal?.inputUnitCostRub || 0)}</b> · всего вход: <b>{money(productTotal?.inputTotalCostRub || 0)}</b>
                     </div>
-                    <table className="table component-table mt-3">
+                    <div className="component-table-wrap mt-3">
+                    <table className="table component-table">
                       <colgroup>
                         <col className="component-include-col" />
                         <col className="component-name-col" />
@@ -312,49 +282,61 @@ export function CalculationEditor({ id }: { id: string }) {
                         ))}
                       </tbody>
                     </table>
+                    </div>
                     {!readOnly && <button className="btn mt-3" onClick={() => addComponent(productIndex)}>+ Комплектующая</button>}
                   </div>
                 );
               })}
             </div>
+            {!readOnly && (
+              <div className="product-add-bar mt-5 flex flex-col gap-2 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between">
+                <select className="field sm:max-w-sm" aria-label="Добавить изделие из шаблона" onChange={(e) => { applyTemplate(e.target.value); e.currentTarget.value = ""; }}>
+                  <option value="">Добавить из шаблона</option>
+                  {templates.map((template) => <option key={template.id} value={template.id}>{template.name}{template.isGlobal ? " · общий" : ""}</option>)}
+                </select>
+                <button className="btn btn-primary sm:min-w-[176px]" onClick={addProduct}>+ Добавить изделие</button>
+              </div>
+            )}
           </div>
         </div>
 
-        <aside className="space-y-5">
-          <div className="panel p-4">
-            <h2 className="mb-3 font-semibold">Обеспечения</h2>
-            <Field label="Заявка, %"><NumericField disabled={readOnly} value={calc.bidSecurityPercent || 0} onValueChange={(value) => update("bidSecurityPercent", value)} /></Field>
-            <Field label="Контракт, %"><NumericField disabled={readOnly} value={calc.contractSecurityPercent || 0} onValueChange={(value) => update("contractSecurityPercent", value)} /></Field>
-            <Field label="Гарантия, %"><NumericField disabled={readOnly} value={calc.warrantySecurityPercent || 0} onValueChange={(value) => update("warrantySecurityPercent", value)} /></Field>
-            <Field label="БГ, %"><NumericField disabled={readOnly} value={calc.bankGuaranteePercent || 0} onValueChange={(value) => update("bankGuaranteePercent", value)} /></Field>
+        <aside className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:block xl:space-y-3">
+          <div className="panel summary-panel p-3">
+            <h2 className="mb-3 text-sm font-semibold">Обеспечения</h2>
+            <div className="grid grid-cols-2 gap-2">
+              <Field label="Заявка, %"><NumericField disabled={readOnly} value={calc.bidSecurityPercent || 0} onValueChange={(value) => update("bidSecurityPercent", value)} /></Field>
+              <Field label="Контракт, %"><NumericField disabled={readOnly} value={calc.contractSecurityPercent || 0} onValueChange={(value) => update("contractSecurityPercent", value)} /></Field>
+              <Field label="Гарантия, %"><NumericField disabled={readOnly} value={calc.warrantySecurityPercent || 0} onValueChange={(value) => update("warrantySecurityPercent", value)} /></Field>
+              <Field label="БГ, %"><NumericField disabled={readOnly} value={calc.bankGuaranteePercent || 0} onValueChange={(value) => update("bankGuaranteePercent", value)} /></Field>
+            </div>
           </div>
 
-          <div className="panel p-4">
-            <h2 className="mb-3 font-semibold">Итоги</h2>
+          <div className="panel summary-panel p-3">
+            <h2 className="mb-2 text-sm font-semibold">Итоги</h2>
             <Metric label="Чистая себестоимость" value={money(totals.pureProductsCostRub)} />
             <Metric label="Доставка" value={money(totals.deliveryCostRub)} />
             <Metric label="Стоимость БГ" value={money(totals.bankGuaranteeCostRub)} />
             <Metric label="Итоговый вход" value={money(totals.inputCostRub)} strong />
           </div>
 
-          <div className="panel p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="font-semibold">Маржа</h2>
-              <NumericField disabled={readOnly} className="field w-24" placeholder="Своя" value={calc.customMarginPercent ?? ""} nullable onValueChange={(value) => update("customMarginPercent", value)} />
+          <div className="panel summary-panel p-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold">Маржа</h2>
+              <NumericField disabled={readOnly} className="field w-20 px-2 py-1.5" aria-label="Своя маржа" placeholder="Своя" value={calc.customMarginPercent ?? ""} nullable onValueChange={(value) => update("customMarginPercent", value)} />
             </div>
             {totals.marginScenarios.map((scenario) => (
-              <div key={scenario.marginPercent} className="mb-2 rounded-md border border-line p-2 text-sm">
+              <div key={scenario.marginPercent} className="border-b border-line py-1.5 text-sm last:border-0">
                 <div className="flex justify-between"><b>{percent(scenario.marginPercent)}</b><span>{money(scenario.totalSalePriceRub)}</span></div>
-                <div className={scenario.profitRub < 0 ? "text-danger" : "text-accent"}>Прибыль {money(scenario.profitRub)} · факт {percent(scenario.actualMarginPercent)}</div>
+                <div className={`text-xs ${scenario.profitRub < 0 ? "text-danger" : "text-muted"}`}>Прибыль {money(scenario.profitRub)} · факт {percent(scenario.actualMarginPercent)}</div>
               </div>
             ))}
           </div>
 
           {calc.type === "AUCTION" && (
-            <div className="panel p-4">
-              <h2 className="mb-3 font-semibold">Торги</h2>
+            <div className="panel summary-panel p-3">
+              <h2 className="mb-2 text-sm font-semibold">Торги</h2>
               {totals.auctionScenarios.map((scenario) => (
-                <div key={scenario.discountPercent} className="mb-2 rounded-md border border-line p-2 text-sm">
+                <div key={scenario.discountPercent} className="border-b border-line py-1.5 text-sm last:border-0">
                   <div className="flex justify-between"><b>{percent(scenario.discountPercent)}</b><span>{money(scenario.auctionPriceRub)}</span></div>
                   <div className={scenario.isAboveInput ? "text-accent" : "text-danger"}>{scenario.isAboveInput ? "Выше входа" : "Ниже входа"} · {money(scenario.auctionProfitRub)} · {percent(scenario.auctionMarginPercent)}</div>
                 </div>

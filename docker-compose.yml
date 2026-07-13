@@ -27,8 +27,6 @@ services:
       ADMIN_LOGIN: ${ADMIN_LOGIN:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-change_me}
       JWT_SECRET: ${JWT_SECRET:-change_me_to_a_long_random_string}
-    ports:
-      - "${APP_PORT:-8090}:8090"
     expose:
       - 8090
     networks:
@@ -50,7 +48,7 @@ services:
     volumes:
       - ./backups:/backups
       - ./scripts:/scripts:ro
-    command: ["/bin/sh", "-c", "while true; do /scripts/backup.sh; sleep 86400; done"]
+    command: ["/bin/sh", "-c", "while true; do /bin/sh /scripts/backup.sh; sleep 86400; done"]
 
 volumes:
   postgres_data:

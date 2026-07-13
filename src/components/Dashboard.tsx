@@ -2,14 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { calculationStatusLabels, calculationTypeLabels, money } from "@/lib/format";
+import { calculationTypeLabels } from "@/lib/format";
 
 type User = { id: string; login: string; email?: string; role: "USER" | "ADMIN" };
 type CalculationListItem = {
   id: string;
   title: string | null;
   type: keyof typeof calculationTypeLabels;
-  status: keyof typeof calculationStatusLabels;
   customerName: string | null;
   customerInn: string | null;
   purchaseNumber: string | null;
@@ -27,7 +26,6 @@ export function Dashboard() {
   const [items, setItems] = useState<CalculationListItem[]>([]);
   const [q, setQ] = useState("");
   const [type, setType] = useState("");
-  const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
 
   async function loadMe() {
@@ -41,7 +39,6 @@ export function Dashboard() {
     const params = new URLSearchParams();
     if (q) params.set("q", q);
     if (type) params.set("type", type);
-    if (status) params.set("status", status);
     const res = await fetch(`/api/calculations?${params.toString()}`);
     if (res.ok) {
       const data = await res.json();
@@ -57,7 +54,7 @@ export function Dashboard() {
   useEffect(() => {
     if (user) loadCalculations();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, q, type, status]);
+  }, [user, q, type]);
 
   async function submitLogin(event: React.FormEvent) {
     event.preventDefault();
@@ -143,7 +140,6 @@ export function Dashboard() {
   }
 
   const typeOptions = useMemo(() => Object.entries(calculationTypeLabels), []);
-  const statusOptions = useMemo(() => Object.entries(calculationStatusLabels), []);
 
   if (loading) return <main className="p-8">Загрузка...</main>;
 
@@ -170,19 +166,19 @@ export function Dashboard() {
   return (
     <main className="min-h-screen">
       <header className="border-b border-line bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
           <div>
             <h1 className="text-xl font-semibold">Калькулятор закупок</h1>
             <p className="text-sm text-muted">{user.email || user.login} · {user.role === "ADMIN" ? "Администратор" : "Менеджер"}</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {user.role === "ADMIN" && <Link className="btn" href="/admin">Админка</Link>}
             <button className="btn" onClick={logout}>Выйти</button>
           </div>
         </div>
       </header>
 
-      <section className="mx-auto max-w-7xl px-6 py-6">
+      <section className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-2">
             <button className="btn btn-primary" onClick={() => createCalculation("AUCTION")}>+ Аукцион</button>
@@ -192,25 +188,20 @@ export function Dashboard() {
           {error && <div className="text-sm text-danger">{error}</div>}
         </div>
 
-        <div className="panel mb-4 grid grid-cols-[minmax(260px,1fr)_180px_180px] gap-3 p-4">
+        <div className="panel mb-4 grid grid-cols-1 gap-3 p-4 sm:grid-cols-[minmax(260px,1fr)_180px]">
           <input className="field" placeholder="Поиск: название, номер закупки, ИНН" value={q} onChange={(e) => setQ(e.target.value)} />
           <select className="field" value={type} onChange={(e) => setType(e.target.value)}>
             <option value="">Все типы</option>
             {typeOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
-          <select className="field" value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="">Все статусы</option>
-            {statusOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select>
         </div>
 
-        <div className="panel overflow-hidden">
-          <table className="table">
+        <div className="panel overflow-x-auto">
+          <table className="table min-w-[860px]">
             <thead>
               <tr>
                 <th>Название</th>
                 <th>Тип</th>
-                <th>Статус</th>
                 <th>Заказчик</th>
                 <th>Менеджер</th>
                 <th>Обновлено</th>
@@ -225,7 +216,6 @@ export function Dashboard() {
                     <div className="text-xs text-muted">{item.purchaseNumber || "без номера закупки"} · {item.products.length} изд.</div>
                   </td>
                   <td>{calculationTypeLabels[item.type]}</td>
-                  <td>{calculationStatusLabels[item.status]}</td>
                   <td>{item.customerName || "—"}<div className="text-xs text-muted">{item.customerInn || ""}</div></td>
                   <td>{item.owner?.login || "—"}</td>
                   <td>{new Date(item.updatedAt).toLocaleString("ru-RU")}</td>
@@ -241,7 +231,7 @@ export function Dashboard() {
               ))}
               {!items.length && (
                 <tr>
-                  <td colSpan={7} className="py-10 text-center text-muted">Расчётов пока нет</td>
+                  <td colSpan={6} className="py-10 text-center text-muted">Расчётов пока нет</td>
                 </tr>
               )}
             </tbody>

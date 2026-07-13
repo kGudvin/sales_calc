@@ -44,9 +44,9 @@ function decimal(value: number | null | undefined, fallback = 0) {
 }
 
 export async function upsertCalculation(user: User, data: CalculationInput, id?: string) {
-  if (id) await canEditCalculation(user, id);
+  const existing = id ? await canEditCalculation(user, id) : null;
   const rate = Number(data.currencyRateUsdRub);
-  const title = autoTitle({ ...data, createdAt: new Date() });
+  const title = autoTitle({ ...data, createdAt: existing?.createdAt || new Date() });
   const purchaseLink = data.purchaseLink || createPurchaseLink(data.purchaseNumber);
 
   const calculationData = {

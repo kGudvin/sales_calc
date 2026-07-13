@@ -24,21 +24,23 @@ export function createPurchaseLink(purchaseNumber?: string | null) {
 
 export function autoTitle(input: {
   title?: string | null;
-  products?: Array<{ name?: string | null; quantity?: number | null }>;
   customerName?: string | null;
-  purchaseNumber?: string | null;
+  customerInn?: string | null;
   createdAt?: Date | string | null;
 }) {
-  if (input.title?.trim()) return input.title.trim();
-  const firstProduct = input.products?.[0];
-  const parts = [
-    firstProduct?.name ? `${firstProduct.name}${firstProduct.quantity ? ` ${firstProduct.quantity} шт` : ""}` : "",
-    input.customerName || "",
-    input.purchaseNumber || ""
-  ].filter(Boolean);
-  if (parts.length) return parts.join(" — ");
+  const title = input.title?.trim();
+  if (title && !isGeneratedTitle(title)) return title;
+  const customerName = input.customerName?.trim();
+  const customerInn = input.customerInn?.trim();
+  if (customerName && customerInn) return `${customerName} · ИНН ${customerInn}`;
+  if (customerName) return customerName;
+  if (customerInn) return `ИНН ${customerInn}`;
   const date = input.createdAt ? new Date(input.createdAt) : new Date();
-  return `Расчёт от ${date.toLocaleDateString("ru-RU")}`;
+  return `Новый подсчёт от ${date.toLocaleDateString("ru-RU")}`;
+}
+
+export function isGeneratedTitle(title: string) {
+  return /^(?:Расч[её]т|Новый подсч[её]т) от \d{1,2}\.\d{1,2}\.\d{4}$/i.test(title.trim());
 }
 
 export function normalizeComponentPrices(priceRub: number | null | undefined, priceUsd: number | null | undefined, currency: "RUB" | "USD", rate: number) {
